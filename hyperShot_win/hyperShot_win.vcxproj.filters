@@ -30,6 +30,9 @@
     <ClInclude Include="system_tray.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="window_helper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -39,6 +42,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="system_tray.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="window_helper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

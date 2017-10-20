@@ -6,6 +6,7 @@
 
 // Global variables
 PNOTIFYICONDATA pNotifyIconData;
+HMENU hMenu;
 
 //
 //    FUNCTION: InitNotifyIcon(HINSTANCE, HWND, UINT)
@@ -20,7 +21,7 @@ BOOL InitNotifyIcon(HINSTANCE hInstance, HWND hWnd, UINT uId) {
 	nIcon.uVersion = NOTIFYICON_VERSION_4;
 	nIcon.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
 	nIcon.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_HYPERSHOTWIN));
-	nIcon.uCallbackMessage = WM_MYMESSAGE;
+	nIcon.uCallbackMessage = WM_NOTIFYICON;
 	wcscpy_s(nIcon.szTip, _T("hyperShot"));
 
 
@@ -33,6 +34,59 @@ BOOL InitNotifyIcon(HINSTANCE hInstance, HWND hWnd, UINT uId) {
 	}
 
 	return TRUE;
+}
+
+//
+//		FUNCTION: InitNotifyMenu(HINSTANNCE)
+//
+//		PURPOSE: Loads the notify menu and assigns it to the right window so it is ready to be called used.
+//
+BOOL InitNotifyMenu(HINSTANCE hInstance) {
+	hMenu = LoadMenu(hInstance, MAKEINTRESOURCE(IDC_NOTIFYMENU));
+	if (hMenu == NULL) {
+		return FALSE;
+	}
+	hMenu = GetSubMenu(hMenu, 0);
+	return TRUE;
+}
+
+void ShowPopup(HWND hWnd) {
+	POINT point;
+	GetCursorPos(&point);
+	UINT fuFlags = TPM_BOTTOMALIGN | TPM_RETURNCMD | TPM_LEFTBUTTON | TPM_NOANIMATION | TPM_VERTICAL;
+	if (GetSystemMetrics(SM_MENUDROPALIGNMENT)) {
+		fuFlags |= TPM_RIGHTALIGN;
+	} else {
+		fuFlags |= TPM_LEFTALIGN;
+	}
+		
+	SetForegroundWindow(hWnd);
+	int command = TrackPopupMenuEx(hMenu, fuFlags, point.x, point.y, hWnd, NULL);
+
+	// Handle the userinput from the popup menu
+	switch (command) {
+		case ID_OPENWINDOW:
+			OpenWindow(hWnd);
+			break;
+		case ID_TAKESELECTIVESCREENSHOT:
+			// Take selective screenshot
+			break;
+		case ID_TAKESCREENSHOT:
+			// Take screenshot
+			break;
+		case ID_SETTINGS:
+			// Show settings
+			break;
+		case IDM_ABOUT:
+			PostMessage(hWnd, WM_COMMAND, IDM_ABOUT, 0);
+			break;
+		case ID_QUIT:
+			//Destory the window
+			DestroyWindow(hWnd);
+			break;
+		default:
+			return;
+	}
 }
 
 // 
