@@ -72,7 +72,12 @@ void ShowPopup(HWND hWnd) {
 			// Take selective screenshot
 			break;
 		case ID_TAKESCREENSHOT:
+			{
 			// Take screenshot
+			HBITMAP hScreenshot = GetScreenshot(0, 0, 0, 0);
+			// Need to open preview window to show picture
+			// Could put option for it to got straight to upload and skip preview/editing step
+			}
 			break;
 		case ID_SETTINGS:
 			// Show settings

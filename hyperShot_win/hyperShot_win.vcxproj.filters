@@ -33,6 +33,9 @@
     <ClInclude Include="window_helper.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="screenshot.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -45,6 +48,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="window_helper.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="screenshot.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

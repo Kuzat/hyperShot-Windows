@@ -1,5 +1,6 @@
 #pragma once
 
+// Usefull MACROS
 #define WM_NOTIFYICON (WM_USER + 1)
 #define NOTIFY_ID_MAIN 99
 
