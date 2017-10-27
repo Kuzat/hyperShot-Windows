@@ -144,6 +144,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="hyperShot_win.h" />
+    <ClInclude Include="preview_window.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="screenshot.h" />
     <ClInclude Include="stdafx.h" />
@@ -153,6 +154,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="hyperShot_win.cpp" />
+    <ClCompile Include="preview_window.cpp" />
     <ClCompile Include="screenshot.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -169,6 +171,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <Image Include="E:\vegar\Pictures\test.bmp" />
     <Image Include="hyperShot_win.ico" />
     <Image Include="small.ico" />
   </ItemGroup>

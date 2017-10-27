@@ -13,10 +13,10 @@ HMENU hMenu;
 //
 //    PURPOSE: Saves the notificationdata pointer and creates a notification icon
 //
-BOOL InitNotifyIcon(HINSTANCE hInstance, HWND hWnd, UINT uId) {
+BOOL InitNotifyIcon(HINSTANCE hInstance, HWND hWndMain, UINT uId) {
 	NOTIFYICONDATA nIcon;
 	nIcon.cbSize = sizeof(NOTIFYICONDATA);
-	nIcon.hWnd = hWnd;
+	nIcon.hWnd = hWndMain;
 	nIcon.uID = uId;
 	nIcon.uVersion = NOTIFYICON_VERSION_4;
 	nIcon.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE;
@@ -50,7 +50,7 @@ BOOL InitNotifyMenu(HINSTANCE hInstance) {
 	return TRUE;
 }
 
-void ShowPopup(HWND hWnd) {
+void ShowPopup(HWND hWndMain) {
 	POINT point;
 	GetCursorPos(&point);
 	UINT fuFlags = TPM_BOTTOMALIGN | TPM_RETURNCMD | TPM_LEFTBUTTON | TPM_NOANIMATION | TPM_VERTICAL;
@@ -60,13 +60,13 @@ void ShowPopup(HWND hWnd) {
 		fuFlags |= TPM_LEFTALIGN;
 	}
 		
-	SetForegroundWindow(hWnd);
-	int command = TrackPopupMenuEx(hMenu, fuFlags, point.x, point.y, hWnd, NULL);
+	SetForegroundWindow(hWndMain);
+	int command = TrackPopupMenuEx(hMenu, fuFlags, point.x, point.y, hWndMain, NULL);
 
 	// Handle the userinput from the popup menu
 	switch (command) {
 		case ID_OPENWINDOW:
-			OpenWindow(hWnd);
+			OpenWindow(hWndMain);
 			break;
 		case ID_TAKESELECTIVESCREENSHOT:
 			// Take selective screenshot
@@ -74,7 +74,8 @@ void ShowPopup(HWND hWnd) {
 		case ID_TAKESCREENSHOT:
 			{
 			// Take screenshot
-			HBITMAP hScreenshot = GetScreenshot(0, 0, 0, 0);
+			HBITMAP hScreenshot = GetScreenshot(NULL, NULL, NULL, NULL, FULLSCREEN);
+			//PreviewWindow(hScreenshot, hInst);
 			// Need to open preview window to show picture
 			// Could put option for it to got straight to upload and skip preview/editing step
 			}
@@ -83,11 +84,11 @@ void ShowPopup(HWND hWnd) {
 			// Show settings
 			break;
 		case IDM_ABOUT:
-			PostMessage(hWnd, WM_COMMAND, IDM_ABOUT, 0);
+			PostMessage(hWndMain, WM_COMMAND, IDM_ABOUT, 0);
 			break;
 		case ID_QUIT:
 			//Destory the window
-			DestroyWindow(hWnd);
+			DestroyWindow(hWndMain);
 			break;
 		default:
 			return;
@@ -97,12 +98,12 @@ void ShowPopup(HWND hWnd) {
 // 
 //		FUNCTION: DeleteNotifyIcon(HWND, UINT)
 //
-//		PURPOSE: Delete the notification icon specified by hWnd and uId;
+//		PURPOSE: Delete the notification icon specified by hWndMain and uId;
 //
-void DeleteNotifyIcon(HWND hWnd, UINT uId) {
+void DeleteNotifyIcon(HWND hWndMain, UINT uId) {
 	NOTIFYICONDATA nIcon;
 	nIcon.cbSize = sizeof(NOTIFYICONDATA);
-	nIcon.hWnd = hWnd;
+	nIcon.hWnd = hWndMain;
 	nIcon.uID = uId;
 	Shell_NotifyIcon(NIM_DELETE, &nIcon);
 }

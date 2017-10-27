@@ -4,11 +4,11 @@
 #include "stdafx.h"
 #include "window_helper.h"
 
-void OpenWindow(HWND hWnd) {
+void OpenWindow(HWND hWndMain) {
 	// Check if window is minimized or TODO: closed.
 	WINDOWPLACEMENT winPlace;
 	winPlace.length = sizeof(WINDOWPLACEMENT);
-	GetWindowPlacement(hWnd, &winPlace);
+	GetWindowPlacement(hWndMain, &winPlace);
 
 
 	#ifdef _DEBUG
@@ -19,12 +19,12 @@ void OpenWindow(HWND hWnd) {
 
 
 	if (winPlace.showCmd == SW_SHOWMINIMIZED) {
-		ShowWindow(hWnd, SW_RESTORE);
+		ShowWindow(hWndMain, SW_RESTORE);
 	}
-	else if (!IsWindowVisible(hWnd)) {
-		ShowWindow(hWnd, SW_SHOW);
+	else if (!IsWindowVisible(hWndMain)) {
+		ShowWindow(hWndMain, SW_SHOW);
 	}
 
 	// Set the window as foreground window and give it focus
-	SetForegroundWindow(hWnd);
+	SetForegroundWindow(hWndMain);
 }

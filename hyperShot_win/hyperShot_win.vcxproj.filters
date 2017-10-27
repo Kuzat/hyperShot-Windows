@@ -36,6 +36,9 @@
     <ClInclude Include="screenshot.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="preview_window.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -53,6 +56,9 @@
     <ClCompile Include="screenshot.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="preview_window.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="hyperShot_win.rc">
@@ -64,6 +70,9 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="hyperShot_win.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="E:\vegar\Pictures\test.bmp">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>
