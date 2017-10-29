@@ -7,6 +7,7 @@
 // Global variables
 PNOTIFYICONDATA pNotifyIconData;
 HMENU hMenu;
+HINSTANCE hInstance;
 
 //
 //    FUNCTION: InitNotifyIcon(HINSTANCE, HWND, UINT)
@@ -14,6 +15,7 @@ HMENU hMenu;
 //    PURPOSE: Saves the notificationdata pointer and creates a notification icon
 //
 BOOL InitNotifyIcon(HINSTANCE hInstance, HWND hWndMain, UINT uId) {
+	hInstance = hInstance;
 	NOTIFYICONDATA nIcon;
 	nIcon.cbSize = sizeof(NOTIFYICONDATA);
 	nIcon.hWnd = hWndMain;
@@ -74,7 +76,8 @@ void ShowPopup(HWND hWndMain) {
 		case ID_TAKESCREENSHOT:
 			{
 			// Take screenshot
-			HBITMAP hScreenshot = GetScreenshot(NULL, NULL, NULL, NULL, FULLSCREEN);
+			HBITMAP hScreenshot = GetScreenshot(0, 0, 0, 0, FULLSCREEN);
+			InitIPreview(hInstance, SW_SHOW, hScreenshot);
 			//PreviewWindow(hScreenshot, hInst);
 			// Need to open preview window to show picture
 			// Could put option for it to got straight to upload and skip preview/editing step

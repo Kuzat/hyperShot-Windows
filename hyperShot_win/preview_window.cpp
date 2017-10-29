@@ -3,12 +3,29 @@
 
 #include "stdafx.h"
 #include "preview_window.h"
+#include <unordered_map>
+
+typedef struct PreviewWindowInfo {
+	HBITMAP hScreenshot;
+	HDC hdcMemory;
+	SIZE bitmapSize;
+	int xMinScroll;
+	int xCurrentScroll;
+	int xMaxScroll;
+	int yMinScroll;
+	int yCurrentScroll;
+	int yMaxScroll;
+	BOOL fBlt;			// TRUE if BitBlt occured
+	BOOL fScroll;		// TRUE if scrolling occured
+	BOOL fSize;			// TRUE if fBlt & WM_SIZE
+	BOOL fCreated;
+} PreviewWindowInfo;
 
 HWND hWndPreview;
 WCHAR szPreviewTitle[MAX_LOADSTRING];                  // The preview title bar text
 WCHAR szPreviewWindowClass[MAX_LOADSTRING];            // the preview window class name
-HBITMAP hScreenshot;
-SIZE bitmapSize;
+std::unordered_map<HWND, PreviewWindowInfo> preview_windows;
+
 
 
 //
@@ -32,7 +49,7 @@ ATOM PreviewRegisterClass(HINSTANCE hInstance) {
 	wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_HYPERSHOTWIN));
 	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
 	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-	wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_HYPERSHOTWIN);
+	wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_PREVIEWMENU);
 	wcex.lpszClassName = szPreviewWindowClass;
 	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
@@ -51,9 +68,7 @@ ATOM PreviewRegisterClass(HINSTANCE hInstance) {
 //
 BOOL InitIPreview(HINSTANCE hInstance, int nCmdShow, HBITMAP hBitmap) {
 
-	hScreenshot = hBitmap;
 
-	GetBitmapDimensionEx(hScreenshot, &bitmapSize);
 
 	hWndPreview = CreateWindowW(szPreviewWindowClass, szPreviewTitle, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX | WS_THICKFRAME | WS_HSCROLL | WS_VSCROLL,
 		CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
@@ -62,6 +77,13 @@ BOOL InitIPreview(HINSTANCE hInstance, int nCmdShow, HBITMAP hBitmap) {
 	{
 		return FALSE;
 	}
+
+	PreviewWindowInfo winInfo;
+	
+	GetBitmapDimensionEx(hBitmap, &winInfo.bitmapSize);
+	winInfo.hScreenshot = hBitmap;
+
+	preview_windows[hWndPreview] = winInfo;
 
 	ShowWindow(hWndPreview, nCmdShow);
 	UpdateWindow(hWndPreview);
@@ -85,25 +107,6 @@ LRESULT CALLBACK WndPreviewProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 	PAINTSTRUCT ps;
 	SCROLLINFO si;
 
-	static HDC hdcWin;
-	static HDC hdcMemory;
-	static HBITMAP staticBitmap;
-	static HBITMAP hOldBitmap;
-	static BOOL fBlt;			// TRUE if BitBlt occured
-	static BOOL fScroll;		// TRUE if scrolling occured
-	static BOOL fSize;			// TRUE if fBlt & WM_SIZE
-	static BOOL fCreated;
-
-	// These variables are required for horizontal scrolling
-	static int xMinScroll;
-	static int xCurrentScroll;
-	static int xMaxScroll;
-
-	// These variables are required for vertical scrolling
-	static int yMinScroll;
-	static int yCurrentScroll;
-	static int yMaxScroll;
-
 	switch (message)
 	{
 	case WM_COMMAND:
@@ -124,32 +127,34 @@ LRESULT CALLBACK WndPreviewProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 		}
 	}
 	break;
-	case WM_CREATE:
-	{
-
-		staticBitmap = hScreenshot;
+	case WM_SHOWWINDOW:
+	{	
+		PreviewWindowInfo info = preview_windows.find(hWnd)->second;
 		hdc = GetDC(hWnd);
-		hdcMemory = CreateCompatibleDC(hdc);
+		info.hdcMemory = CreateCompatibleDC(hdc);
 
 		// select the new bitmap
-		hOldBitmap = (HBITMAP)SelectObject(hdcMemory, staticBitmap);
+		SelectObject(info.hdcMemory, info.hScreenshot);
 
-		fBlt = FALSE;
-		fScroll = FALSE;
-		fSize = FALSE;
-		fCreated = TRUE;
+		info.fBlt = FALSE;
+		info.fScroll = FALSE;
+		info.fSize = FALSE;
+		info.fCreated = TRUE;
 
-		xMinScroll = 0;
-		xCurrentScroll = 0;
-		xMaxScroll = 0;
+		info.xMinScroll = 0;
+		info.xCurrentScroll = 0;
+		info.xMaxScroll = 0;
 
-		yMinScroll = 0;
-		yCurrentScroll = 0;
-		yMaxScroll = 0;
+		info.yMinScroll = 0;
+		info.yCurrentScroll = 0;
+		info.yMaxScroll = 0;
+
+		preview_windows[hWnd] = info;
 	}
 	break;
 	case WM_SIZE:
 	{
+		PreviewWindowInfo info = preview_windows.find(hWnd)->second;
 		int xNewSize;
 		int yNewSize;
 
@@ -157,48 +162,51 @@ LRESULT CALLBACK WndPreviewProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 		yNewSize = HIWORD(lParam);
 
 		
-		fSize = TRUE;
+		info.fSize = TRUE;
 
 		// The horizontal scrolling range is defined by
 		// (bitmap_width) - (client_width). The current horizontal
 		// scroll value remains within the horizontal scrolling range.
-		xMaxScroll = max(bitmapSize.cx - xNewSize, 0);
-		xCurrentScroll = min(xCurrentScroll, xMaxScroll);
+		info.xMaxScroll = max(info.bitmapSize.cx - xNewSize, 0);
+		info.xCurrentScroll = min(info.xCurrentScroll, info.xMaxScroll);
 		si.cbSize = sizeof(si);
 		si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
-		si.nMin = xMinScroll;
-		si.nMax = bitmapSize.cx;
+		si.nMin = info.xMinScroll;
+		si.nMax = info.bitmapSize.cx;
 		si.nPage = xNewSize;
-		si.nPos = xCurrentScroll;
+		si.nPos = info.xCurrentScroll;
 		SetScrollInfo(hWnd, SB_HORZ, &si, TRUE);
 
 		// The vertical scrolling range is define by
 		// (bitmap_height) - (client_height). The current vertical
 		// scroll valueremains within the vertical scrolling range.
-		yMaxScroll = max(bitmapSize.cy - yNewSize, 0);
-		yCurrentScroll = min(yCurrentScroll, yMaxScroll);
+		info.yMaxScroll = max(info.bitmapSize.cy - yNewSize, 0);
+		info.yCurrentScroll = min(info.yCurrentScroll, info.yMaxScroll);
 		si.cbSize = sizeof(si);
 		si.fMask = SIF_RANGE | SIF_PAGE | SIF_POS;
-		si.nMin = yMinScroll;
-		si.nMax = bitmapSize.cy;
+		si.nMin = info.yMinScroll;
+		si.nMax = info.bitmapSize.cy;
 		si.nPage = yNewSize;
-		si.nPos = yCurrentScroll;
+		si.nPos = info.yCurrentScroll;
 		SetScrollInfo(hWnd, SB_VERT, &si, TRUE);
+
+		preview_windows[hWnd] = info;
 	}
 	break;
 	case WM_PAINT:
 	{
+		PreviewWindowInfo info = preview_windows.find(hWnd)->second;
 		PRECT prect;
 
 		hdc = BeginPaint(hWnd, &ps);
-		
+
 		// If the window has been resized and the user has
 		// capture the screen, use the follow call to
 		// BitBlt to paint window's client area.
-		if (fSize) {
-			BitBlt(ps.hdc, 0, 0, bitmapSize.cx, bitmapSize.cy, hdcMemory, xCurrentScroll, yCurrentScroll, SRCCOPY);
+		if (info.fSize) {
+			BitBlt(hdc, 0, 0, info.bitmapSize.cx, info.bitmapSize.cy, info.hdcMemory, info.xCurrentScroll, info.yCurrentScroll, SRCCOPY);
 
-			fSize = FALSE;
+			info.fSize = FALSE;
 		}
 
 		// If scrolling hash occurred, use the following call to
@@ -210,19 +218,19 @@ LRESULT CALLBACK WndPreviewProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 		// Note the it is  necessary to increment the seventh
 		// argument (prect->left) by xCurrentScroll in
 		// order to map the correct pixells from the source bitmap.
-		if (fScroll) {
+		if (info.fScroll) {
 			prect = &ps.rcPaint;
 
-			BitBlt(ps.hdc, prect->left, prect->top, (prect->right - prect->left), (prect->bottom - prect->top), hdcMemory, prect->left + xCurrentScroll, prect->top + yCurrentScroll, SRCCOPY);
+			BitBlt(hdc, prect->left, prect->top, (prect->right - prect->left), (prect->bottom - prect->top), info.hdcMemory, prect->left + info.xCurrentScroll, prect->top + info.yCurrentScroll, SRCCOPY);
 
-			fScroll = FALSE;
+			info.fScroll = FALSE;
 		}
 
-		if (fCreated) {
-			OutputDebugString(_T("is created\n"));
-			BitBlt(ps.hdc, 0, 0, bitmapSize.cx, bitmapSize.cy, hdcMemory, xCurrentScroll, yCurrentScroll, SRCCOPY);
+		if (info.fCreated) {
 
-			fCreated = FALSE;
+			BitBlt(hdc, 0, 0, info.bitmapSize.cx, info.bitmapSize.cy, info.hdcMemory, info.xCurrentScroll, info.yCurrentScroll, SRCCOPY);
+
+			info.fCreated = FALSE;
 		}
 
 		// OPTION: Make scaling an option
@@ -248,8 +256,71 @@ LRESULT CALLBACK WndPreviewProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 		EndPaint(hWnd, &ps);
 	}
 	break;
+	case WM_MOUSEWHEEL:
+	{
+		PreviewWindowInfo info = preview_windows.find(hWnd)->second;
+		int xDelta = 0;
+		int yDelta = 0;
+		int newPos;
+
+		// Check if shift is down so we can scroll in horizontal direction
+		if (GET_KEYSTATE_WPARAM(wParam) == MK_SHIFT) {
+			xDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+
+			newPos = info.xCurrentScroll - xDelta;
+
+			// New position must be between 0 and the screen width. 
+			newPos = max(0, newPos);
+			newPos = min(info.xMaxScroll, newPos);
+
+			xDelta = newPos - info.xCurrentScroll;
+
+			info.fScroll = TRUE;
+
+			info.xCurrentScroll = newPos;
+
+			preview_windows[hWnd] = info;
+			ScrollWindowEx(hWnd, -xDelta, -yDelta, NULL, NULL, NULL, NULL, SW_INVALIDATE);
+			UpdateWindow(hWnd);
+
+			// Reset the scroll bar. 
+			si.cbSize = sizeof(si);
+			si.fMask = SIF_POS;
+			si.nPos = info.xCurrentScroll;
+			SetScrollInfo(hWnd, SB_HORZ, &si, TRUE);
+			preview_windows[hWnd] = info;
+		} else {
+			//
+			yDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+
+			newPos = info.yCurrentScroll - yDelta;
+
+			// New position must be between 0 and the screen width. 
+			newPos = max(0, newPos);
+			newPos = min(info.yMaxScroll, newPos);
+
+			yDelta = newPos - info.yCurrentScroll;
+
+			info.fScroll = TRUE;
+
+			info.yCurrentScroll = newPos;
+
+			preview_windows[hWnd] = info;
+			ScrollWindowEx(hWnd, -xDelta, -yDelta, NULL, NULL, NULL, NULL, SW_INVALIDATE);
+			UpdateWindow(hWnd);
+
+			// Reset the scroll bar. 
+			si.cbSize = sizeof(si);
+			si.fMask = SIF_POS;
+			si.nPos = info.yCurrentScroll;
+			SetScrollInfo(hWnd, SB_VERT, &si, TRUE);
+			preview_windows[hWnd] = info;
+		}
+	}
+	break;
 	case WM_HSCROLL:
 	{
+		PreviewWindowInfo info = preview_windows.find(hWnd)->second;
 		int xDelta;     // xDelta = new_pos - current_pos  
 		int xNewPos;    // new position 
 		int yDelta = 0;
@@ -258,60 +329,66 @@ LRESULT CALLBACK WndPreviewProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 		{
 			// User clicked the scroll bar shaft left of the scroll box. 
 		case SB_PAGEUP:
-			xNewPos = xCurrentScroll - 50;
+			xNewPos = info.xCurrentScroll - 50;
 		break;
 			// User clicked the scroll bar shaft right of the scroll box. 
 		case SB_PAGEDOWN:
-			xNewPos = xCurrentScroll + 50;
+			xNewPos = info.xCurrentScroll + 50;
 		break;
 			// User clicked the left arrow. 
 		case SB_LINEUP:
-			xNewPos = xCurrentScroll - 5;
+			xNewPos = info.xCurrentScroll - 5;
 		break;
 			// User clicked the right arrow. 
 		case SB_LINEDOWN:
-			xNewPos = xCurrentScroll + 5;
+			xNewPos = info.xCurrentScroll + 5;
 		break;
 		case SB_THUMBTRACK:
 			xNewPos = HIWORD(wParam);
 		break;
 		default:
-			xNewPos = xCurrentScroll;
+			xNewPos = info.xCurrentScroll;
 		}
 
 		// New position must be between 0 and the screen width. 
 		xNewPos = max(0, xNewPos);
-		xNewPos = min(xMaxScroll, xNewPos);
+		xNewPos = min(info.xMaxScroll, xNewPos);
 
 		// If the current position does not change, do not scroll.
-		if (xNewPos == xCurrentScroll)
+		if (xNewPos == info.xCurrentScroll) {
+			preview_windows[hWnd] = info;
 			break;
+		}
+			
 
 		// Set the scroll flag to TRUE. 
-		fScroll = TRUE;
+		info.fScroll = TRUE;
 
 		// Determine the amount scrolled (in pixels). 
-		xDelta = xNewPos - xCurrentScroll;
+		xDelta = xNewPos - info.xCurrentScroll;
 
 		// Reset the current scroll position. 
-		xCurrentScroll = xNewPos;
+		info.xCurrentScroll = xNewPos;
 
 		// Scroll the window. (The system repaints most of the 
 		// client area when ScrollWindowEx is called; however, it is 
 		// necessary to call UpdateWindow in order to repaint the 
 		// rectangle of pixels that were invalidated.) 
+		preview_windows[hWnd] = info;
 		ScrollWindowEx(hWnd, -xDelta, -yDelta, NULL, NULL, NULL, NULL, SW_INVALIDATE);
 		UpdateWindow(hWnd);
 
 		// Reset the scroll bar. 
 		si.cbSize = sizeof(si);
 		si.fMask = SIF_POS;
-		si.nPos = xCurrentScroll;
+		si.nPos = info.xCurrentScroll;
 		SetScrollInfo(hWnd, SB_HORZ, &si, TRUE);
+		preview_windows[hWnd] = info;
 	}
 	break;
 	case WM_VSCROLL:
 	{
+		PreviewWindowInfo info = preview_windows.find(hWnd)->second;
 		int xDelta = 0;
 		int yDelta;     // yDelta = new_pos - current_pos 
 		int yNewPos;    // new position 
@@ -320,60 +397,65 @@ LRESULT CALLBACK WndPreviewProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 		{
 			// User clicked the scroll bar shaft above the scroll box. 
 		case SB_PAGEUP:
-			yNewPos = yCurrentScroll - 50;
+			yNewPos = info.yCurrentScroll - 50;
 		break;
 			// User clicked the scroll bar shaft below the scroll box. 
 		case SB_PAGEDOWN:
-			yNewPos = yCurrentScroll + 50;
+			yNewPos = info.yCurrentScroll + 50;
 		break;
 			// User clicked the top arrow. 
 		case SB_LINEUP:
-			yNewPos = yCurrentScroll - 5;
+			yNewPos = info.yCurrentScroll - 5;
 		break;
 			// User clicked the bottom arrow. 
 		case SB_LINEDOWN:
-			yNewPos = yCurrentScroll + 5;
+			yNewPos = info.yCurrentScroll + 5;
 		break;
 		case SB_THUMBTRACK:
 			yNewPos = HIWORD(wParam);
 		break;
 		default:
-			yNewPos = yCurrentScroll;
+			yNewPos = info.yCurrentScroll;
 		}
 
 		// New position must be between 0 and the screen height. 
 		yNewPos = max(0, yNewPos);
-		yNewPos = min(yMaxScroll, yNewPos);
+		yNewPos = min(info.yMaxScroll, yNewPos);
 
 		// If the current position does not change, do not scroll.
-		if (yNewPos == yCurrentScroll)
+		if (yNewPos == info.yCurrentScroll) {
+			preview_windows[hWnd] = info;
 			break;
+		}
 
 		// Set the scroll flag to TRUE. 
-		fScroll = TRUE;
+		info.fScroll = TRUE;
 
 		// Determine the amount scrolled (in pixels). 
-		yDelta = yNewPos - yCurrentScroll;
+		yDelta = yNewPos - info.yCurrentScroll;
 
 		// Reset the current scroll position. 
-		yCurrentScroll = yNewPos;
+		info.yCurrentScroll = yNewPos;
 
 		// Scroll the window. (The system repaints most of the 
 		// client area when ScrollWindowEx is called; however, it is 
 		// necessary to call UpdateWindow in order to repaint the 
 		// rectangle of pixels that were invalidated.) 
+		preview_windows[hWnd] = info;
 		ScrollWindowEx(hWnd, -xDelta, -yDelta, NULL, NULL, NULL, NULL, SW_INVALIDATE);
 		UpdateWindow(hWnd);
 
 		// Reset the scroll bar. 
 		si.cbSize = sizeof(si);
 		si.fMask = SIF_POS;
-		si.nPos = yCurrentScroll;
+		si.nPos = info.yCurrentScroll;
 		SetScrollInfo(hWnd, SB_VERT, &si, TRUE);
+		preview_windows[hWnd] = info;
 	}
 	break;
 	case WM_DESTROY:
-		DeleteObject(hScreenshot);
+		//Cleanup
+		preview_windows.erase(hWnd);
 	break;
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
