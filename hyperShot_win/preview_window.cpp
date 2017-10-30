@@ -77,6 +77,7 @@ BOOL InitIPreview(HINSTANCE hInstance, int nCmdShow, HBITMAP hBitmap) {
 	{
 		return FALSE;
 	}
+	
 
 	PreviewWindowInfo winInfo;
 	
@@ -88,6 +89,26 @@ BOOL InitIPreview(HINSTANCE hInstance, int nCmdShow, HBITMAP hBitmap) {
 	ShowWindow(hWndPreview, nCmdShow);
 	UpdateWindow(hWndPreview);
 
+	return TRUE;
+}
+
+//
+//  FUNCTION: EditCopy(HWND)
+//
+//  PURPOSE:  Copy the Bitmap to the clipboard
+//
+BOOL EditCopy(HWND hWnd) {
+	PreviewWindowInfo info = preview_windows.find(hWnd)->second;
+
+	
+	if (!OpenClipboard(hWnd))
+		return FALSE;
+	EmptyClipboard();
+
+	// Not sure if i can use the hScreenshot after this.
+	SetClipboardData(CF_BITMAP, info.hScreenshot);
+
+	CloseClipboard();
 	return TRUE;
 }
 
@@ -115,12 +136,15 @@ LRESULT CALLBACK WndPreviewProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 		// Parse the menu selections:
 		switch (wmId)
 		{
-		case IDM_ABOUT:
+		case ID_HELP_ABOUT:
 			DialogBox(NULL, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
 			break;
 		case IDM_EXIT:
 			// Closes the window
 			DestroyWindow(hWnd);
+			break;
+		case ID_EDIT_COPY:
+			EditCopy(hWnd);
 			break;
 		default:
 			return DefWindowProc(hWnd, message, wParam, lParam);
@@ -455,6 +479,7 @@ LRESULT CALLBACK WndPreviewProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 	break;
 	case WM_DESTROY:
 		//Cleanup
+		PreviewWindowInfo info = preview_windows.find(hWnd)->second;
 		preview_windows.erase(hWnd);
 	break;
 	default:
